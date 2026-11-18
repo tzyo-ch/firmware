@@ -3,6 +3,7 @@
 #if defined(USE_HUB75)
 
 #include "HUB75Display.h"
+#include "ScreenMirror.h"
 #include "TFTColorRegions.h"
 #include "TFTPalette.h"
 #include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>
@@ -41,9 +42,8 @@ bool HUB75Display::connect()
     cfg.i2sspeed = HUB75_I2S_CFG::HZ_8M; // timing headroom (signal integrity)
     cfg.latch_blanking = 4;              // clean row transitions
     cfg.clkphase = false;                // inverted clock phase: fixes 1px skew of lower half
-    cfg.double_buff = false;             // single buffer: halves the internal-SRAM DMA
-                                         // footprint. display() draws directly into the
-                                         // live buffer with a dirty-diff
+    cfg.double_buff = false;             // single buffer halves the internal-SRAM DMA
+                                         // footprint; display() dirty-diffs into the live buffer
 
     matrix = new MatrixPanel_I2S_DMA(cfg);
     bool ok = matrix->begin();
@@ -122,6 +122,9 @@ void HUB75Display::display()
     firstFrame = false;
 #if GRAPHICS_TFT_COLORING_ENABLED
     lastColorSig = colorSig;
+#if HAS_SCREEN_MIRROR
+    graphics::screenMirror.capturePalette(colorSig, onBe, offBe, graphics::colorRegions, graphics::getTFTColorRegionCount());
+#endif
     // Regions are re-registered every frame by the renderers; clear so they
     // don't accumulate across frames.
     graphics::clearTFTColorRegions();
